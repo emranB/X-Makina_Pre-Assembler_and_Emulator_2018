@@ -4,6 +4,10 @@
 #include "Memory.h"
 #include "cpu.h"
 
+extern struct PSW_BITS* PSWptr;			/* Structure of PSW externed from cpu.c */
+extern signed short REG_FILE[];			/* Register file externed from cpu.c */
+extern unsigned long SYS_CLK;
+
 /*
 	Combination of PRPO, DEC and INC bits from Register Direct
 	addressing mode, to map address modifier types.
@@ -77,12 +81,12 @@ void Process_LD(unsigned char prpo, unsigned char dec, unsigned char inc, unsign
 		}
 		break;
 	case PRE_DEC:
-		if (wb == WORD) {		/* Word */
+		if (wb == WORD) {	/* Word */
 			REG_FILE[src] -= 2;
 			EA = REG_FILE[src];
 			MEM_RD(EA, REG_FILE[dst], WORD);
 		}
-		else {					/* Byte */
+		else {				/* Byte */
 			REG_FILE[src]--;
 			EA = REG_FILE[src];
 			MEM_RD(EA, TEMP_BYTE, BYTE);
@@ -90,12 +94,12 @@ void Process_LD(unsigned char prpo, unsigned char dec, unsigned char inc, unsign
 		}
 		break;
 	case POST_DEC:
-		if (wb == 0) {			/* Word */
+		if (wb == 0) {		/* Word */
 			EA = REG_FILE[src];
 			MEM_RD(EA, REG_FILE[dst], WORD);
 			REG_FILE[src] -= 2;
 		}
-		else {					/* Byte */
+		else {				/* Byte */
 			EA = REG_FILE[src];
 			MEM_RD(EA, TEMP_BYTE, BYTE);
 			REG_FILE[dst] |= TEMP_BYTE;
@@ -113,17 +117,15 @@ void Process_LD(unsigned char prpo, unsigned char dec, unsigned char inc, unsign
 	Effective Address:	
 		- Pre  -> Dst + Address Modifiers
 		- Post -> Src + Address Modifiers
-	prpo:				0 = Post or None, 1 = Pre
-	dec:				0 = No Decrement, 1 = Decrement
-	inc:				0 = No Increment, 1 = Increment
+	prpo -> 0 = Post or None, 1 = Pre
+	dec ->  0 = No Decrement, 1 = Decrement
+	inc	->  0 = No Increment, 1 = Increment
 */
 void Process_ST(unsigned char prpo, unsigned char dec, unsigned char inc, unsigned char wb, unsigned int src, unsigned int dst) {
 	printf("Found ST\n");
 
 	/* Getting Effective address from Src operand */
 	unsigned short EA;
-	/* Used for byte operations */
-	signed char TEMP_BYTE;
 	/* Type of address modifier - PRPO DEC INC */
 	enum REG_DIR_ADDR_MODS addr_mod = (prpo << 2) | (dec << 1) | (inc);
 
@@ -205,9 +207,9 @@ void Process_MOVLZ(unsigned char data_byte, unsigned int dst) {
 */
 void Process_MOVH(unsigned char data_byte, unsigned int dst) {
 	printf("Found MOVH\n");
-	unsigned char dst_HI = data_byte & 0xFF00;
+	unsigned char dst_HI = data_byte;
 	unsigned char dst_LO = REG_FILE[dst] & 0x00FF;
-	REG_FILE[dst] = dst_HI | dst_LO;
+	REG_FILE[dst] = (dst_HI << 8) | dst_LO;
 }
 
 

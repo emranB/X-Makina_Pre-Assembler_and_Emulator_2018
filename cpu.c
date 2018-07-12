@@ -13,6 +13,7 @@ int WAITING_FOR_SIGNAL = TRUE;			/* Flag to handle Signals */
 struct PSW_BITS* PSWptr;				/* Initialzing PSW */
 enum CPU_STATES state;					/* State of the CPU */
 enum WORD_BYTE wb;						/* Determining Word or Byte type, based on Instruction Opcode */
+extern union MEM_OLAY MEM;				/* Main Memory */
 
 /*
 	Initializing System Clock.
@@ -36,6 +37,15 @@ signed short REG_FILE[] = {
 	0,	/* R6 - PSW */
 	0	/* R7 - PC */
 };
+
+/* 16-bit Instruction Register */
+unsigned short INST;							
+
+/* Check for changes in Status of Devices */
+extern void CheckDevices(void);
+
+/* System Clock Breakpoint - set by Debugger */
+unsigned long SYS_CLK_BREAKPOINT;
 
 /*
 	Branch Instructions functions pointer table
@@ -106,19 +116,27 @@ void SignalHandler() {
 */
 void RunMachine(void) {
 
-	unsigned short INST;							/* 16-bit Instruction */
 	unsigned int   type;							/* Save type of Inst */
 	unsigned int   temp_type;						/* Save secondary type of Inst */
 
-	state = FETCH;									/* Initializing state of CPU */
+	state        = FETCH;							/* Initializing state of CPU */
 	signal(SIGINT, (_crt_signal_t)SignalHandler);	/* Handler function for SIGNINT signals */
 
+	/* 
+		Run loop indefinitely, till at least one of the following conditions is met:
+		- SIGINT Signal is detected ('^c' = !WAITING_FOR_SIGNAL)
+		- CPU is asleep	(PSWptr->sleep = 1)
+		Note: If CPU priority is 7 (Highest Priority), PSWptr->sleep CANNOT be set.
+	*/
+	//while ((WAITING_FOR_SIGNAL) && (PSWptr->sleep != 1) && (SYS_CLK != SYS_CLK_BREAKPOINT)) {
 	while (WAITING_FOR_SIGNAL) {
 		switch (state) {
 			case FETCH:
 				/* Get WORD from Memory */
 				if ((INST = fetch()) == FALSE) {	/* If Instrution is not fetched */
 					state = HANDLE_DEVICES;
+					SYS_CLK++;
+					printf("No fetch\n");
 				}
 				else
 					state = DECODE;
@@ -170,10 +188,14 @@ void RunMachine(void) {
 				state = HANDLE_DEVICES;
 				break;
 			case HANDLE_DEVICES:
-				// Handle Interrupts
+				CheckDevices();
 				state = FETCH;
 				break;
 		}
+
+		/* SYS_CLK_BREAKPOINT is set by Debugger. Default value = 1000 */
+		if (SYS_CLK > SYS_CLK_BREAKPOINT)
+			break;
 	} /* End of while loop */
 
 }
@@ -188,12 +210,28 @@ unsigned short fetch(void) {
 	unsigned short eff_addr = REG_FILE[PC];		/* Effective Address */
 
 	/*
-		Prevent Accessing Location 0xFFFF (HCF).
-		Read Memory through Bus.
-		Note: Bus swaps LO and HI bytes to account for 'Little-Endian-ness'
+		IF NOT Accessing HCF (0xFFFF)
+			Read Memory through Bus.
+			Note: Bus swaps LO and HI bytes to account for 'Little-Endian-ness'.
+		ELSE
+			- Pull LR
+			- Pull PSW
+			  PSW.SLP <- 0
+			- Pull PC
 	*/
 	if (eff_addr != HCF) 
 		MEM_RD(eff_addr, inst, WORD);			/* Read from Memory */
-	
+	else {	   /* Seeing HCF (0xFFFF) -> Must be returning from ISR */
+		REG_FILE[SP] += 2;
+		MEM_RD(REG_FILE[SP], REG_FILE[LR], WORD);
+		REG_FILE[SP] += 2;
+		MEM_RD(REG_FILE[SP], REG_FILE[PSW], WORD);
+		PSWptr->sleep = 0;
+		REG_FILE[SP] += 2;
+		MEM_RD(REG_FILE[SP], REG_FILE[PC], WORD);
+
+		MEM_RD(REG_FILE[PC], inst, WORD);		/* Read from Memory */
+	}
+
 	return inst;
 }

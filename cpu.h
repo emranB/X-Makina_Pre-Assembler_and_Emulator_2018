@@ -54,10 +54,10 @@
 Arithemetic Instructions Definitions
 */
 #define ARITH_TYPE(x)			(((x) & 0x1F00) >> 8)	/* Extract bits 12 to 8 - Type */
-#define ARITH_RC(x)				((x) & 0x0080)			/* Extract bit 7		- Register or Constant */
-#define ARITH_WB(x)				((x) & 0x0040)			/* Extract bit 6		- Word or Byte */
-#define ARITH_SRC(x)			((x) & 0x0031)			/* Extract bits 5 to 3  - Source or Constant */
-#define ARITH_DST(x)			((x) & 0x0007)			/* Extract bits 5 to 3  - Source or Constant */
+#define ARITH_RC(x)				(((x) & 0x0080) >> 7)	/* Extract bit 7		- Register or Constant */
+#define ARITH_WB(x)				(((x) & 0x0040) >> 6)	/* Extract bit 6		- Word or Byte */
+#define ARITH_SRC(x)			(((x) & 0x0038) >> 3)	/* Extract bits 5 to 3  - Source or Constant */
+#define ARITH_DST(x)			((x) & 0x0007)			/* Extract bits 2 to 0  - Source or Constant */
 
 /*
 LD and ST Instructions Definitions
@@ -83,7 +83,10 @@ LD and ST Instructions Definitions
 #define LDR_STR_OFFSET_SRC(x)	(((x) & 0x0038) >> 3)	/* Extract bit 5 to 3	- Src */
 #define LDR_STR_OFFSET_DST(x)	((x) & 0x0007)			/* Extract bits 2 to 0	- Dst */
 
-
+/*
+	Extract Priority bits from PSW
+*/
+#define GET_PRIOR(x)			((x) & 0x00E0)			/* Extract bits 5 to 8 - Priority */
 
 /*
 	Defining R6 - Program Status Word (PSW).
@@ -108,7 +111,7 @@ unsigned short fetch(void);
 /* 
 	States of the CPU 
 */
-enum CPU_STATES { FETCH, DECODE, EXECUTE, HANDLE_INTERRUPT, INST_ERROR, DONE };		
+enum CPU_STATES { FETCH, DECODE, EXECUTE, HANDLE_DEVICES, INST_ERROR, DONE };		
 
 /*
 	Instruction Opcode Bits for Word or Byte
@@ -169,17 +172,17 @@ extern void Process_SXT(unsigned char, unsigned char, unsigned int, unsigned int
 extern void none(unsigned char, unsigned char, unsigned int, unsigned int);
 
 /* @input: 1-bit Pre or Post, 1-bit Decrement, 1-bit Increment, 1-bit Word or Byte, 3-bit Source, 3-bit Destination */
-void Process_LD(unsigned char, unsigned char, unsigned char, unsigned char, unsigned int, unsigned int);
-void Process_ST(unsigned char, unsigned char, unsigned char, unsigned char, unsigned int, unsigned int);
+extern void Process_LD(unsigned char, unsigned char, unsigned char, unsigned char, unsigned int, unsigned int);
+extern void Process_ST(unsigned char, unsigned char, unsigned char, unsigned char, unsigned int, unsigned int);
 
 /* @input: 8-bit Data Byte,3-bit Destination */
-void Process_MOVL(unsigned char, unsigned int);
-void Process_MOVLZ(unsigned char, unsigned int);
-void Process_MOVH(unsigned char, unsigned int);
+extern void Process_MOVL(unsigned char, unsigned int);
+extern void Process_MOVLZ(unsigned char, unsigned int);
+extern void Process_MOVH(unsigned char, unsigned int);
 
 /* @input: 5-bit Offset, 1-bit Word or Byte, 3-bit Source, 3-bit Destination */
-void Process_LDR(unsigned char, unsigned char, unsigned char, unsigned char);
-void Process_STR(unsigned char, unsigned char, unsigned char, unsigned char);
+extern void Process_LDR(unsigned char, unsigned char, unsigned char, unsigned char);
+extern void Process_STR(unsigned char, unsigned char, unsigned char, unsigned char);
 
 
 

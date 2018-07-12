@@ -7,7 +7,8 @@ extern struct PSW_BITS* PSWptr;			/* Program Status Word */
 extern signed short REG_FILE[];			/* Register File */
 enum RC reg_or_const;					/* Register or Constant */
 
-void SetPSW(signed result, unsigned reg_sign_bit_pre_op, unsigned reg_sign_bit_post_op, unsigned wb);
+/* Set PSW bits after completing an Arithmetic Inst */
+void SetPSW(signed short, signed short, signed short, unsigned wb);
 
 /*
 	Look-up table for Register or Constant
@@ -50,6 +51,7 @@ signed int RC_TBL[8][2] = {
 void Process_ADD(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
 	printf("Found ADD\n");
 
+	signed dst_pre_op;
 	unsigned sign_bit_pre_op, sign_bit_post_op;
 	signed char dst_HI, dst_LO, temp_result_byte, temp_byte_LO;
 
@@ -59,10 +61,9 @@ void Process_ADD(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 
 	if (wb == WORD) {
 		sign_bit_pre_op  = WORD_MSB(REG_FILE[dst]);			/* Extract bit-15 (MSB) */
+		dst_pre_op		 = REG_FILE[dst];
 		REG_FILE[dst]   += src_val;
 		sign_bit_post_op = WORD_MSB(REG_FILE[dst]);			/* Extract bit-15 (MSB) */
-
-		SetPSW(REG_FILE[dst], sign_bit_pre_op, sign_bit_post_op, wb);
 	}
 	else {													/* Byte */
 		dst_HI			 = HI_BYTE(REG_FILE[dst]);			/* Extracting High byte of Dst */
@@ -70,11 +71,12 @@ void Process_ADD(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		sign_bit_pre_op  = BYTE_MSB(dst_LO);				/* Extract bit-7 */
 		temp_byte_LO     = LO_BYTE(REG_FILE[src]);			/* Extracting low byte of Src */
 		temp_result_byte = dst_LO + temp_byte_LO;			/* Adding low bytes or Src and Dst */
+		dst_pre_op		 = REG_FILE[dst];
 		REG_FILE[dst]    = (dst_HI << 8) | temp_result_byte;
 		sign_bit_post_op = BYTE_MSB(temp_result_byte);		/* Getting sign bit of result */
-
-		SetPSW(temp_result_byte, sign_bit_pre_op, sign_bit_post_op, wb);
 	}
+
+	SetPSW(src_val, dst_pre_op, REG_FILE[dst], wb);
 }
 
 
@@ -87,6 +89,7 @@ void Process_ADD(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 void Process_ADDC(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
 	printf("Found ADDC\n");
 
+	signed short dst_pre_op;
 	unsigned sign_bit_pre_op, sign_bit_post_op;
 	signed char dst_HI, dst_LO, temp_result_byte, temp_byte_LO;
 
@@ -95,25 +98,25 @@ void Process_ADDC(unsigned char rc, unsigned char wb, unsigned int src, unsigned
 		src_val = REG_FILE[src_val];
 
 	if (wb == WORD) {
-		sign_bit_pre_op = WORD_MSB(REG_FILE[dst]);			/* Extract bit-15 (MSB) */
-		REG_FILE[dst]      += src_val + PSWptr->carry;
-		PSWptr->carry		= 0;							/* Reset carry bit after borrowing */
-		sign_bit_post_op	= WORD_MSB(REG_FILE[dst]);		/* Extract bit-15 (MSB) */
-
-		SetPSW(REG_FILE[dst], sign_bit_pre_op, sign_bit_post_op, wb);
+		sign_bit_pre_op	 = WORD_MSB(REG_FILE[dst]);		/* Extract bit-15 (MSB) */
+		dst_pre_op		 = REG_FILE[dst];
+		REG_FILE[dst]   += src_val + PSWptr->carry;
+		PSWptr->carry	 = 0;							/* Reset carry bit after borrowing */
+		sign_bit_post_op = WORD_MSB(REG_FILE[dst]);		/* Extract bit-15 (MSB) */
 	}
-	else {																/* Byte */
-		dst_HI				= HI_BYTE(REG_FILE[dst]);					/* Extracting High byte of Dst */
-		dst_LO				= LO_BYTE(REG_FILE[dst]);					/* Extracting low byte of Dst */
-		sign_bit_pre_op		= BYTE_MSB(dst_LO);							/* Extract bit-7 */
-		temp_byte_LO		= LO_BYTE(REG_FILE[src]);					/* Extracting low byte of Src */
-		temp_result_byte	= dst_LO + temp_byte_LO + PSWptr->carry;	/* Adding low bytes or Src and Dst */
-		PSWptr->carry		= 0;										/* Reset carry bit after borrowing */
-		REG_FILE[dst]		= (dst_HI << 8) | temp_result_byte;
-		sign_bit_post_op	= BYTE_MSB(temp_result_byte);				/* Getting sign bit of result */
-
-		SetPSW(temp_result_byte, sign_bit_pre_op, sign_bit_post_op, wb);
+	else {															/* Byte */
+		dst_HI			 = HI_BYTE(REG_FILE[dst]);					/* Extracting High byte of Dst */
+		dst_LO			 = LO_BYTE(REG_FILE[dst]);					/* Extracting low byte of Dst */
+		sign_bit_pre_op	 = BYTE_MSB(dst_LO);						/* Extract bit-7 */
+		temp_byte_LO	 = LO_BYTE(REG_FILE[src]);					/* Extracting low byte of Src */
+		temp_result_byte = dst_LO + temp_byte_LO + PSWptr->carry;	/* Adding low bytes or Src and Dst */
+		PSWptr->carry	 = 0;										/* Reset carry bit after borrowing */
+		dst_pre_op		 = REG_FILE[dst];
+		REG_FILE[dst]	 = (dst_HI << 8) | temp_result_byte;
+		sign_bit_post_op = BYTE_MSB(temp_result_byte);				/* Getting sign bit of result */
 	}
+
+	SetPSW(src_val, dst_pre_op, REG_FILE[dst], wb);
 }
 
 
@@ -126,6 +129,7 @@ void Process_ADDC(unsigned char rc, unsigned char wb, unsigned int src, unsigned
 void Process_SUB(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
 	printf("Found SUB\n");
 
+	signed short dst_pre_op;
 	unsigned sign_bit_pre_op, sign_bit_post_op;
 	signed char dst_HI, dst_LO, temp_result_byte, temp_byte_LO;
 
@@ -134,23 +138,23 @@ void Process_SUB(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		src_val = REG_FILE[src_val];
 
 	if (wb == WORD) {
-		sign_bit_pre_op		= WORD_MSB(REG_FILE[dst]);		/* Extract bit-15 (MSB) */
-		REG_FILE[dst]      -= src_val;
-		sign_bit_post_op	= WORD_MSB(REG_FILE[dst]);		/* Extract bit-15 (MSB) */
-
-		SetPSW(REG_FILE[dst], sign_bit_pre_op, sign_bit_post_op, wb);
+		sign_bit_pre_op	 = WORD_MSB(REG_FILE[dst]);		/* Extract bit-15 (MSB) */
+		dst_pre_op		 = REG_FILE[dst];
+		REG_FILE[dst]   -= src_val;
+		sign_bit_post_op = WORD_MSB(REG_FILE[dst]);		/* Extract bit-15 (MSB) */
 	}
-	else {													/* Byte */
-		dst_HI				= HI_BYTE(REG_FILE[dst]);		/* Extracting High byte of Dst */
-		dst_LO				= LO_BYTE(REG_FILE[dst]);		/* Extracting low byte of Dst */
-		sign_bit_pre_op		= BYTE_MSB(dst_LO);				/* Extract bit-7 */
-		temp_byte_LO		= LO_BYTE(REG_FILE[src]);		/* Extracting low byte of Src */
-		temp_result_byte	= dst_LO - temp_byte_LO;		/* Subtracting low byte of Src to Dst */
-		REG_FILE[dst]		= (dst_HI << 8) | temp_result_byte;
-		sign_bit_post_op	= BYTE_MSB(temp_result_byte);	/* Getting sign bit of result */
-
-		SetPSW(temp_result_byte, sign_bit_pre_op, sign_bit_post_op, wb);
+	else {												/* Byte */
+		dst_HI			 = HI_BYTE(REG_FILE[dst]);		/* Extracting High byte of Dst */
+		dst_LO			 = LO_BYTE(REG_FILE[dst]);		/* Extracting low byte of Dst */
+		sign_bit_pre_op	 = BYTE_MSB(dst_LO);			/* Extract bit-7 */
+		temp_byte_LO	 = LO_BYTE(REG_FILE[src]);		/* Extracting low byte of Src */
+		temp_result_byte = dst_LO - temp_byte_LO;		/* Subtracting low byte of Src to Dst */
+		dst_pre_op		 = REG_FILE[dst];
+		REG_FILE[dst]	 = (dst_HI << 8) | temp_result_byte;
+		sign_bit_post_op = BYTE_MSB(temp_result_byte);	/* Getting sign bit of result */
 	}
+
+	SetPSW(src_val, dst_pre_op, REG_FILE[dst], wb);
 }
 
 
@@ -163,6 +167,7 @@ void Process_SUB(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 void Process_SUBC(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
 	printf("Found SUBC\n");
 
+	signed short dst_pre_op;
 	unsigned sign_bit_pre_op, sign_bit_post_op;
 	signed char dst_HI, dst_LO, temp_result_byte, temp_byte_LO;
 
@@ -172,11 +177,10 @@ void Process_SUBC(unsigned char rc, unsigned char wb, unsigned int src, unsigned
 
 	if (wb == WORD) {
 		sign_bit_pre_op  = WORD_MSB(REG_FILE[dst]);			/* Extract bit-15 (MSB) */
+		dst_pre_op		 = REG_FILE[dst];
 		REG_FILE[dst]   -= src_val + PSWptr->carry;
 		PSWptr->carry    = 0;								/* Reset carry bit after borrowing */
 		sign_bit_post_op = WORD_MSB(REG_FILE[dst]);			/* Extract bit-15 (MSB) */
-
-		SetPSW(REG_FILE[dst], sign_bit_pre_op, sign_bit_post_op, wb);
 	}
 	else {															/* Byte */
 		dst_HI           = HI_BYTE(REG_FILE[dst]);					/* Extracting High byte of Dst */
@@ -185,11 +189,14 @@ void Process_SUBC(unsigned char rc, unsigned char wb, unsigned int src, unsigned
 		temp_byte_LO     = LO_BYTE(REG_FILE[src]);					/* Extracting low byte of Src */
 		temp_result_byte = dst_LO - temp_byte_LO + PSWptr->carry;	/* Subtracting low byte of Src to Dst */
 		PSWptr->carry    = 0;										/* Reset carry bit after borrowing */
+		dst_pre_op		 = REG_FILE[dst];
 		REG_FILE[dst]    = (dst_HI << 8) | temp_result_byte;
 		sign_bit_post_op = BYTE_MSB(temp_result_byte);				/* Getting sign bit of result */
-
-		SetPSW(temp_result_byte, sign_bit_pre_op, sign_bit_post_op, wb);
 	}
+
+	/* Set bits in PSW */
+	SetPSW(src_val, dst_pre_op, REG_FILE[dst], wb);
+
 }
 
 
@@ -218,22 +225,21 @@ void Process_CMP(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		src_val = REG_FILE[src_val];
 
 	if (wb == WORD) {
-		sign_bit_pre_op	  = WORD_MSB(REG_FILE[dst]);			/* Extract bit-15 (MSB) */
+		sign_bit_pre_op	  = WORD_MSB(REG_FILE[dst]);			  /* Extract bit-15 (MSB) */
 		temp_result_word  = REG_FILE[dst] - src_val;
-		sign_bit_post_op  = WORD_MSB(temp_result_word);			/* Extract bit-15 (MSB) */
-
-		SetPSW(temp_result_word, sign_bit_pre_op, sign_bit_post_op, wb);
+		sign_bit_post_op  = WORD_MSB(temp_result_word);			  /* Extract bit-15 (MSB) */
 	}
-	else {														/* Byte */
-		dst_HI			 = HI_BYTE(REG_FILE[dst]);				/* Extracting High byte of Dst */
-		dst_LO			 = LO_BYTE(REG_FILE[dst]);				/* Extracting low byte of Dst */
-		sign_bit_pre_op  = BYTE_MSB(dst_LO);					/* Extract bit-7 */
-		temp_byte_LO	 = LO_BYTE(REG_FILE[src]);				/* Extracting low byte of Src */
-		temp_result_byte = dst_LO - temp_byte_LO;				/* Subtracting low byte of Src to Dst */
-		sign_bit_post_op = BYTE_MSB(temp_result_byte);			/* Getting sign bit of result */
-
-		SetPSW(temp_result_byte, sign_bit_pre_op, sign_bit_post_op, wb);
+	else {														  /* Byte */
+		dst_HI			 = HI_BYTE(REG_FILE[dst]);				  /* Extracting High byte of Dst */
+		dst_LO			 = LO_BYTE(REG_FILE[dst]);				  /* Extracting low byte of Dst */
+		sign_bit_pre_op  = BYTE_MSB(dst_LO);					  /* Extract bit-7 */
+		temp_byte_LO	 = LO_BYTE(REG_FILE[src]);				  /* Extracting low byte of Src */
+		temp_result_word = (signed short)(dst_LO - temp_byte_LO); /* Subtracting low byte of Src to Dst */
+		sign_bit_post_op = BYTE_MSB(temp_result_word);			  /* Getting sign bit of result */
 	}
+
+	/* Set bits in PSW */
+	SetPSW(src_val, REG_FILE[dst], temp_result_word, wb);
 }
 
 
@@ -246,6 +252,7 @@ void Process_CMP(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 void Process_XOR(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
 	printf("Found XOR\n");
 
+	signed short dst_pre_op;
 	unsigned sign_bit_pre_op, sign_bit_post_op;
 	signed char dst_HI, dst_LO, temp_result_byte, temp_byte_LO;
 
@@ -255,10 +262,9 @@ void Process_XOR(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 
 	if (wb == WORD) {
 		sign_bit_pre_op  = WORD_MSB(REG_FILE[dst]);			/* Extract bit-15 (MSB) */
+		dst_pre_op		 = REG_FILE[dst];
 		REG_FILE[dst]    = REG_FILE[dst] ^ src_val;
 		sign_bit_post_op = WORD_MSB(REG_FILE[dst]);			/* Extract bit-15 (MSB) */
-
-		SetPSW(REG_FILE[dst], sign_bit_pre_op, sign_bit_post_op, wb);
 	}
 	else {													/* Byte */
 		dst_HI			 = HI_BYTE(REG_FILE[dst]);			/* Extracting High byte of Dst */
@@ -266,11 +272,13 @@ void Process_XOR(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		sign_bit_pre_op  = BYTE_MSB(dst_LO);				/* Extract bit-7 */
 		temp_byte_LO	 = LO_BYTE(REG_FILE[src]);			/* Extracting low byte of Src */
 		temp_result_byte = dst_LO ^ temp_byte_LO;			/* Subtracting low byte of Src to Dst */
+		dst_pre_op		 = REG_FILE[dst];
 		REG_FILE[dst]	 = (dst_HI << 8) | temp_result_byte;
 		sign_bit_post_op = BYTE_MSB(temp_result_byte);		/* Getting sign bit of result */
-
-		SetPSW(temp_result_byte, sign_bit_pre_op, sign_bit_post_op, wb);
 	}
+
+	/* Set bits in PSW */
+	SetPSW(src_val, dst_pre_op, REG_FILE[dst], wb);
 }
 
 
@@ -284,6 +292,7 @@ void Process_XOR(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 void Process_AND(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
 	printf("Found AND\n");
 
+	signed short dst_pre_op;
 	unsigned sign_bit_pre_op, sign_bit_post_op;
 	signed char dst_HI, dst_LO, temp_result_byte, temp_byte_LO;
 
@@ -293,10 +302,9 @@ void Process_AND(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 
 	if (wb == WORD) {
 		sign_bit_pre_op  = WORD_MSB(REG_FILE[dst]);			/* Extract bit-15 (MSB) */
+		dst_pre_op		 = REG_FILE[dst];
 		REG_FILE[dst]    = REG_FILE[dst] & src_val;
 		sign_bit_post_op = WORD_MSB(REG_FILE[dst]);			/* Extract bit-15 (MSB) */
-
-		SetPSW(REG_FILE[dst], sign_bit_pre_op, sign_bit_post_op, wb);
 	}
 	else {													/* Byte */
 		dst_HI			 = HI_BYTE(REG_FILE[dst]);			/* Extracting High byte of Dst */
@@ -304,11 +312,13 @@ void Process_AND(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		sign_bit_pre_op  = BYTE_MSB(dst_LO);				/* Extract bit-7 */
 		temp_byte_LO     = LO_BYTE(REG_FILE[src]);			/* Extracting low byte of Src */
 		temp_result_byte = dst_LO & temp_byte_LO;			/* Subtracting low byte of Src to Dst */
+		dst_pre_op		 = REG_FILE[dst];
 		REG_FILE[dst]    = (dst_HI << 8) | temp_result_byte;
 		sign_bit_post_op = BYTE_MSB(temp_result_byte);		/* Getting sign bit of result */
-
-		SetPSW(temp_result_byte, sign_bit_pre_op, sign_bit_post_op, wb);
 	}
+
+	/* Set bits in PSW */
+	SetPSW(src_val, dst_pre_op, REG_FILE[dst], wb);
 }
 
 
@@ -621,24 +631,34 @@ void none(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst
 	@params result of operation, sign bit before operartion, sign bit after operation
 	@return void
 */
-void SetPSW(signed result, unsigned reg_sign_bit_pre_op, unsigned reg_sign_bit_post_op, unsigned wb) {
+void SetPSW(signed short src, signed short dst_pre_op, signed short dst_post_op, unsigned wb) {
 
 	unsigned dst_sign_bit_pre_op, dst_sign_bit_post_op;
 	signed char dst_HI, dst_LO, temp_byte_HI, temp_byte_LO;
 
+	src			= (wb == WORD) ? (src)		   : ((signed char)src);
+	dst_pre_op  = (wb == WORD) ? (dst_pre_op)  : ((signed char)dst_pre_op);
+	dst_post_op = (wb == WORD) ? (dst_post_op) : ((signed char)dst_post_op);
+
+	dst_sign_bit_pre_op  = (wb == WORD) ? WORD_MSB(dst_pre_op)  : BYTE_MSB(dst_pre_op);
+	dst_sign_bit_post_op = (wb == WORD) ? WORD_MSB(dst_post_op) : BYTE_MSB(dst_post_op);
+
 	/* Check for negative result */
-	PSWptr->negative = (reg_sign_bit_post_op == 1) ? 1 : 0;
+	PSWptr->negative = (dst_post_op < 0) ? 1 : 0;
 
-	/* Check for overflow result */
-	PSWptr->overflow = (wb == WORD) ? ((result > REG_WORD_MAX_VAL) ? 1 : 0) : ((result > REG_BYTE_MAX_VAL) ? 1 : 0);
-
-	/* 
-		Check for overflow result 
-		For Words: Set Carry if bit-16 is set.
-		For Bytes: Set Carry if bit-9 is set.
+	/* Check for overflow 
+	   SET
+		IF two negatives result in a positive
+		OR two positives result in a negative
 	*/
-	PSWptr->carry = (wb == WORD) ? (((result & 0x80000) == 1) ? 1 : 0) : (((result & 0x800) == 1) ? 1 : 0);
+	if ((src < 0 && dst_pre_op < 0 && dst_post_op >0) || (src >= 0 && dst_pre_op >= 0 && dst_post_op <= 0))
+		PSWptr->overflow = 1;
+	else
+		PSWptr->overflow = 0;
+
+	/* Check for carry */
+	PSWptr->carry = (dst_sign_bit_pre_op == 1 && dst_sign_bit_post_op == 0) ? 1 : 0;
 
 	/* Check for zero result */
-	PSWptr->zero = (result == 0) ? 1 : 0;
+	PSWptr->zero = (dst_post_op == 0) ? 1 : 0;
 }

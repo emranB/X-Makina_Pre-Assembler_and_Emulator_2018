@@ -11,10 +11,12 @@
 
 /*
 	Structure of Memory
-	Accessed as Words of Bytes
+	Accessed as Words or Bytes
 */
 union MEM_OLAY {
 	unsigned short MEM_WORD[MAX_MEM_SIZE_WORD];
 	unsigned char MEM_BYTE[MAX_MEM_SIZE_BYTE];
 };
 
+/* Read from or Write to Memory */
+void bus(unsigned short address, unsigned short* data, unsigned int wb, unsigned int rw);

@@ -24,8 +24,13 @@ extern unsigned long SYS_CLK;
 */
 void bus(unsigned short address, unsigned short* data, unsigned int wb, unsigned int rw) {
 	if (address < (2 * DEVICES_COUNT)) {
-		/* Accessing Memory Mapped Devices */
-		//AccessDeviceMem(address, (unsigned char*)data, rw);
+		/* 
+			Accessing Memory Mapped Devices.
+			Notice that only writing to either the SCR addr or Data addr
+			is allowed at a time, ie. writing Words are not supported.
+			Hence, data is casted to "unsigned char*" type.
+		*/
+		AccessDeviceMem(address, (unsigned char*) data, rw);
 	}
 	else {
 		if (rw == READ) {
