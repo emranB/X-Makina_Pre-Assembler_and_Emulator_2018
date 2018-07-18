@@ -64,7 +64,7 @@ int XmeLoader(char* fileName) {
 				sscanf(&srec[index], "%c", &AssessingFileName[i]);
 				index++;
 			}
-			printf("Assessing File: %s\n", AssessingFileName);
+			printf("Input '.asm' File: %s\n", AssessingFileName);
 			break;
 		case 9:
 			REG_FILE[PC] = SrecAddr;

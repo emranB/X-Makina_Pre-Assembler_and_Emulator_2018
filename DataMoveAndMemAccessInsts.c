@@ -3,10 +3,12 @@
 #include "Emulator.h"
 #include "Memory.h"
 #include "cpu.h"
+#include "Instructions.h"
 
 extern struct PSW_BITS* PSWptr;			/* Structure of PSW externed from cpu.c */
 extern signed short REG_FILE[];			/* Register file externed from cpu.c */
-extern unsigned long SYS_CLK;
+extern unsigned long SYS_CLK;			/* System Clock */
+extern FILE* FOUT_INSTS;				/* File pointer to write results of Instructions */
 
 /*
 	Combination of PRPO, DEC and INC bits from Register Direct
@@ -21,6 +23,9 @@ enum REG_DIR_ADDR_MODS {
 };
 
 
+/* Print results to external file */
+void PrintDataResults(char*, char*, signed char, char*, signed char);
+
 
 
 /*
@@ -32,8 +37,7 @@ enum REG_DIR_ADDR_MODS {
 	Note: For byte operations, only the LO byte is read or written to, and HI byte is left unchanged.
 */
 void Process_LD(unsigned char prpo, unsigned char dec, unsigned char inc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found LD\n");
-	//printf("PrPo=	%d\ndec=	%d\ninc=	%d\nwb=	%d\nsrc=	%d\ndst=	%d\n", prpo, dec, inc, wb, src, dst);
+	PrintDataResults("LD", "SRC", src, "DST", dst);
 
 	/* Getting Effective address from Src operand */
 	unsigned short EA;
@@ -51,7 +55,7 @@ void Process_LD(unsigned char prpo, unsigned char dec, unsigned char inc, unsign
 		else {					/* Byte */
 			EA = REG_FILE[src];
 			MEM_RD(EA, TEMP_BYTE, BYTE);
-			REG_FILE[dst] |= TEMP_BYTE;
+			REG_FILE[dst] = (REG_FILE[dst] & 0xFF00) | TEMP_BYTE;
 		}
 		break;
 	case PRE_INC:
@@ -76,7 +80,7 @@ void Process_LD(unsigned char prpo, unsigned char dec, unsigned char inc, unsign
 		else {				/* Byte */
 			EA = REG_FILE[src];
 			MEM_RD(EA, TEMP_BYTE, BYTE);
-			REG_FILE[dst] |= TEMP_BYTE;
+			REG_FILE[dst] = (REG_FILE[dst] & 0xFF00) | TEMP_BYTE;
 			REG_FILE[src]++;
 		}
 		break;
@@ -90,7 +94,7 @@ void Process_LD(unsigned char prpo, unsigned char dec, unsigned char inc, unsign
 			REG_FILE[src]--;
 			EA = REG_FILE[src];
 			MEM_RD(EA, TEMP_BYTE, BYTE);
-			REG_FILE[dst] |= TEMP_BYTE;
+			REG_FILE[dst] = (REG_FILE[dst] & 0xFF00) | TEMP_BYTE;
 		}
 		break;
 	case POST_DEC:
@@ -102,7 +106,7 @@ void Process_LD(unsigned char prpo, unsigned char dec, unsigned char inc, unsign
 		else {				/* Byte */
 			EA = REG_FILE[src];
 			MEM_RD(EA, TEMP_BYTE, BYTE);
-			REG_FILE[dst] |= TEMP_BYTE;
+			REG_FILE[dst] = (REG_FILE[dst] & 0xFF00) | TEMP_BYTE;
 			REG_FILE[src]--;
 		}
 		break;
@@ -122,7 +126,7 @@ void Process_LD(unsigned char prpo, unsigned char dec, unsigned char inc, unsign
 	inc	->  0 = No Increment, 1 = Increment
 */
 void Process_ST(unsigned char prpo, unsigned char dec, unsigned char inc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found ST\n");
+	PrintDataResults("ST", "SRC", src, "DST", dst);
 
 	/* Getting Effective address from Src operand */
 	unsigned short EA;
@@ -180,10 +184,10 @@ void Process_ST(unsigned char prpo, unsigned char dec, unsigned char inc, unsign
 	HI byte of Dst is left unchanged.
 */
 void Process_MOVL(unsigned char data_byte, unsigned int dst) {
-	printf("Found MOVL\n");
+	PrintDataResults("MOVL", "DATA", data_byte, "DST", dst);
 	unsigned char dst_HI = REG_FILE[dst] & 0xFF00;
-	unsigned char dst_LO = data_byte & 0x00FF;
-	REG_FILE[dst] = (dst_HI | dst_LO);
+	unsigned char dst_LO = data_byte;
+	REG_FILE[dst] = (dst_HI << 8) | dst_LO;
 }
 
 
@@ -193,10 +197,10 @@ void Process_MOVL(unsigned char data_byte, unsigned int dst) {
 	HI byte of Dst is replaced with 0's.
 */
 void Process_MOVLZ(unsigned char data_byte, unsigned int dst) {
-	printf("Found MOVLZ\n");
-	unsigned char dst_HI = 0;
-	unsigned char dst_LO = data_byte & 0x00FF;
-	REG_FILE[dst] = dst_HI | dst_LO;
+	PrintDataResults("MOVLZ", "DATA", data_byte, "DST", dst);
+	unsigned char dst_HI = 0x00;
+	unsigned char dst_LO = data_byte;
+	REG_FILE[dst] = (dst_HI << 8) | dst_LO;
 }
 
 
@@ -206,7 +210,7 @@ void Process_MOVLZ(unsigned char data_byte, unsigned int dst) {
 	HI byte of Dst is replaced with 8-bit data byte of Src.
 */
 void Process_MOVH(unsigned char data_byte, unsigned int dst) {
-	printf("Found MOVH\n");
+	PrintDataResults("MOVH", "DATA", data_byte, "DST", dst);
 	unsigned char dst_HI = data_byte;
 	unsigned char dst_LO = REG_FILE[dst] & 0x00FF;
 	REG_FILE[dst] = (dst_HI << 8) | dst_LO;
@@ -223,7 +227,7 @@ void Process_MOVH(unsigned char data_byte, unsigned int dst) {
 
 */
 void Process_LDR(unsigned char offset, unsigned char wb, unsigned char src, unsigned char dst) {
-	printf("Found LDR\n");
+	PrintDataResults("LDR", "Offset", offset, "DST", dst);
 
 	signed short total_offset;
 	signed short EA;			/* Effective Address */
@@ -233,30 +237,28 @@ void Process_LDR(unsigned char offset, unsigned char wb, unsigned char src, unsi
 
 	/* Extending Sign bit*/
 	if (signbit == 1)
-		total_offset = 0xFFC0 | (offset & 0x3F);
+		total_offset = 0xFFC0 | ((offset) & 0x3F);
 	else
-		total_offset = 0x0000 | (offset & 0x3F);
+		total_offset = 0x003F & ((offset) & 0x3F);
 
 	/* Adding value of Src operand */
 	EA = REG_FILE[src] + total_offset;
 
-	if (wb == WORD)				/* Word */
-		REG_FILE[dst] = MEM.MEM_WORD[EA];
-	else						/* Byte */
-		REG_FILE[dst] = (REG_FILE[dst] & 0xFF00) | (MEM.MEM_BYTE[EA]);
+	MEM_RD(EA, REG_FILE[dst], wb);
+
 }
 
 
 
 /*
 	Load contents of memory at Effective Address to Dst Operand.
-	Effective Address = Src Operand + Offset
+	Effective Address = Dst Operand + Offset
 	Note: The 6-bit offset is sign extended and added to Src Operand
 	to get Effective Address.
 	Range: +31 to -32 Bytes, or, -16 to +15 Words.
 */
 void Process_STR(unsigned char offset, unsigned char wb, unsigned char src, unsigned char dst) {
-	printf("Found STR\n");
+	PrintDataResults("STR", "Offset", offset, "DST", dst);
 
 	signed short total_offset;
 	signed short EA;			/* Effective Address */
@@ -268,10 +270,23 @@ void Process_STR(unsigned char offset, unsigned char wb, unsigned char src, unsi
 	if (signbit == 1)
 		total_offset = 0xFFC0 | (offset & 0x3F);
 	else
-		total_offset = 0x0000 | (offset & 0x3F);
+		total_offset = 0x003F & (offset & 0x3F);
 
 	/* Adding value of Src operand */
 	EA = REG_FILE[dst] + total_offset;
 
 	MEM_WR(EA, REG_FILE[src], wb);
+}
+
+
+
+/*
+	Print Data Results
+*/
+void PrintDataResults(char* INST, char* PARAM1_NAME, signed char PARAM1_VAL, char* PARAM2_NAME, signed char PARAM2_VAL) {
+	printf("Found **%s**	---		%s(%04x), %s(%04x)\n",
+		INST, PARAM1_NAME, PARAM1_VAL & 0xFFFF, PARAM2_NAME, PARAM2_VAL & 0xFFFF);
+
+	fprintf(FOUT_INSTS, "Found **%s**	---		%s(%04x), %s(%04x)\n",
+		INST, PARAM1_NAME, PARAM1_VAL & 0xFFFF, PARAM2_NAME, PARAM2_VAL & 0xFFFF);
 }

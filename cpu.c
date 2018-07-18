@@ -7,20 +7,21 @@
 #include <signal.h>
 #include "cpu.h"
 #include "memory.h"
+#include "Instructions.h"
 
 
 int WAITING_FOR_SIGNAL = TRUE;			/* Flag to handle Signals */
-struct PSW_BITS* PSWptr;				/* Initialzing PSW */
+extern struct PSW_BITS* PSWptr;			/* Pointer to PSW */
 enum CPU_STATES state;					/* State of the CPU */
 enum WORD_BYTE wb;						/* Determining Word or Byte type, based on Instruction Opcode */
 extern union MEM_OLAY MEM;				/* Main Memory */
+FILE* FOUT_INSTS;						/* Write Instructions to external file */
 
 /*
-	Initializing System Clock.
-	Using arbitrary data type with widest range in positive integers.
+	System Clock.
 	Range of Values: 0 to 4,294,967,295
 */
-unsigned long SYS_CLK;
+extern unsigned long SYS_CLK;
 
 /*
 	Initializing Register File.
@@ -45,11 +46,10 @@ unsigned short INST;
 extern void CheckDevices(void);
 
 /* System Clock Breakpoint - set by Debugger */
-unsigned long SYS_CLK_BREAKPOINT;
+extern unsigned long SYS_CLK_BREAKPOINT;
 
-/*
-	Branch Instructions functions pointer table
-*/
+
+/* Branch Instructions functions pointer table */
 void(*BRANCH_PTR[])(unsigned, ...) = {
 	Process_BEQ,	/* Bits: (12, 11, 10) = 0 0 0; Same as BZ */
 	Process_BNE,	/* Bits: (12, 11, 10) = 0 0 1; Same as BNE */
@@ -61,9 +61,7 @@ void(*BRANCH_PTR[])(unsigned, ...) = {
 	Process_BAL		/* Bits: (12, 11, 10) = 1 1 1 */
 };
 
-/*
-	Arithmetic Instructions functions pointer table
-*/
+/* Arithmetic Instructions functions pointer table */
 void(*ARITHMETIC_PTR[])(unsigned, ...) = {
 	Process_ADD,   /* Bits: (12, 11, 10, 9, 8) = 0 0 0 0 0 */
 	none,
@@ -104,6 +102,11 @@ void SignalHandler() {
 }
 
 
+/* Print contents of Register File */
+void PrintRegFile(void);
+
+
+
 /*
 	Emulation of the CPU.
 	This is where the Fetch - Decode - Execute takes places
@@ -122,13 +125,16 @@ void RunMachine(void) {
 	state        = FETCH;							/* Initializing state of CPU */
 	signal(SIGINT, (_crt_signal_t)SignalHandler);	/* Handler function for SIGNINT signals */
 
+	/* Open file to write output of Instructions to */
+	if ((FOUT_INSTS = fopen("../Debug/InstructionsOutput.txt", "w")) == NULL)
+		printf("Error: Could not open external file to write output of Instructins");
+
 	/* 
 		Run loop indefinitely, till at least one of the following conditions is met:
 		- SIGINT Signal is detected ('^c' = !WAITING_FOR_SIGNAL)
 		- CPU is asleep	(PSWptr->sleep = 1)
 		Note: If CPU priority is 7 (Highest Priority), PSWptr->sleep CANNOT be set.
 	*/
-	//while ((WAITING_FOR_SIGNAL) && (PSWptr->sleep != 1) && (SYS_CLK != SYS_CLK_BREAKPOINT)) {
 	while (WAITING_FOR_SIGNAL) {
 		switch (state) {
 			case FETCH:
@@ -140,6 +146,8 @@ void RunMachine(void) {
 				}
 				else
 					state = DECODE;
+				printf("PC = %4x	", REG_FILE[PC]);
+				fprintf(FOUT_INSTS, "PC = %4x	", REG_FILE[PC]);
 				REG_FILE[PC] += 2;					/* Increment PC */
 				break;
 			case DECODE:
@@ -198,6 +206,8 @@ void RunMachine(void) {
 			break;
 	} /* End of while loop */
 
+	PrintRegFile();
+
 }
 
 
@@ -234,4 +244,23 @@ unsigned short fetch(void) {
 	}
 
 	return inst;
+}
+
+
+
+/*
+	Print contents of Register File
+*/
+void PrintRegFile(void) {
+	int i = 0;
+	printf("\n\n---------------------------------\n");
+	fprintf(FOUT_INSTS, "\n\n---------------------------------\n");
+	for (i = 0; i < 8; i++) {
+		printf("REGISTER *%d* = *%04x* -> *%d*\n", 
+				i, REG_FILE[i] & 0xFFFF, REG_FILE[i] & 0xFFFF);
+		fprintf(FOUT_INSTS, "REGISTER *%d* = *%4x* -> *%d*\n", 
+				i, REG_FILE[i] & 0xFFFF, REG_FILE[i] & 0xFFFF);
+	}
+	printf("---------------------------------\n");
+	fprintf(FOUT_INSTS, "---------------------------------\n");
 }

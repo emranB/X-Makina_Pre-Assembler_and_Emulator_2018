@@ -1,14 +1,19 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "cpu.h"
+#include "Instructions.h"
 
 
 extern struct PSW_BITS* PSWptr;			/* Program Status Word */
 extern signed short REG_FILE[];			/* Register File */
 enum RC reg_or_const;					/* Register or Constant */
+extern FILE* FOUT_INSTS;
 
 /* Set PSW bits after completing an Arithmetic Inst */
 void SetPSW(signed short, signed short, signed short, unsigned wb);
+
+/* Print Results */
+void PrintArithResults(char*, unsigned char, unsigned char, unsigned int, unsigned int);
 
 /*
 	Look-up table for Register or Constant
@@ -49,7 +54,9 @@ signed int RC_TBL[8][2] = {
 		Perform the same operation for Low bytes of Src and Dst
 */
 void Process_ADD(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found ADD\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("ADD", rc, wb, src, dst);
 
 	signed dst_pre_op;
 	unsigned sign_bit_pre_op, sign_bit_post_op;
@@ -87,7 +94,9 @@ void Process_ADD(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		Perform the same operation for Low bytes of Src and Dst
 */
 void Process_ADDC(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found ADDC\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("ADDC", rc, wb, src, dst);
 
 	signed short dst_pre_op;
 	unsigned sign_bit_pre_op, sign_bit_post_op;
@@ -127,7 +136,9 @@ void Process_ADDC(unsigned char rc, unsigned char wb, unsigned int src, unsigned
 		Perform the same operation for Low bytes of Src and Dst
 */
 void Process_SUB(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found SUB\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("SUB", rc, wb, src, dst);
 
 	signed short dst_pre_op;
 	unsigned sign_bit_pre_op, sign_bit_post_op;
@@ -165,7 +176,9 @@ void Process_SUB(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		Perform the same operation for Low bytes of Src and Dst
 */
 void Process_SUBC(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found SUBC\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("SUBC", rc, wb, src, dst);
 
 	signed short dst_pre_op;
 	unsigned sign_bit_pre_op, sign_bit_post_op;
@@ -203,7 +216,10 @@ void Process_SUBC(unsigned char rc, unsigned char wb, unsigned int src, unsigned
 
 
 void Process_DADD(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found DADD\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("DADD", rc, wb, src, dst);
+
 }
 
 
@@ -214,7 +230,9 @@ void Process_DADD(unsigned char rc, unsigned char wb, unsigned int src, unsigned
 		Perform the same operation for Low bytes of Src and Dst
 */
 void Process_CMP(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found CMP\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("CMP", rc, wb, src, dst);
 
 	unsigned sign_bit_pre_op, sign_bit_post_op;
 	signed short temp_result_word;
@@ -250,7 +268,9 @@ void Process_CMP(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		Perform the same operation for Low bytes of Src and Dst
 */
 void Process_XOR(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found XOR\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("XOR", rc, wb, src, dst);
 
 	signed short dst_pre_op;
 	unsigned sign_bit_pre_op, sign_bit_post_op;
@@ -290,7 +310,9 @@ void Process_XOR(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		Perform the same operation for Low bytes of Src and Dst
 */
 void Process_AND(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found AND\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("AND", rc, wb, src, dst);
 
 	signed short dst_pre_op;
 	unsigned sign_bit_pre_op, sign_bit_post_op;
@@ -310,7 +332,7 @@ void Process_AND(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		dst_HI			 = HI_BYTE(REG_FILE[dst]);			/* Extracting High byte of Dst */
 		dst_LO			 = LO_BYTE(REG_FILE[dst]);			/* Extracting low byte of Dst */
 		sign_bit_pre_op  = BYTE_MSB(dst_LO);				/* Extract bit-7 */
-		temp_byte_LO     = LO_BYTE(REG_FILE[src]);			/* Extracting low byte of Src */
+		temp_byte_LO     = LO_BYTE(src_val);			/* Extracting low byte of Src */
 		temp_result_byte = dst_LO & temp_byte_LO;			/* Subtracting low byte of Src to Dst */
 		dst_pre_op		 = REG_FILE[dst];
 		REG_FILE[dst]    = (dst_HI << 8) | temp_result_byte;
@@ -330,7 +352,9 @@ void Process_AND(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		Perform the same operation for Low bytes of Src and Dst
 */
 void Process_BIT(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found BIT\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("BIT", rc, wb, src, dst);
 
 	unsigned sign_bit_pre_op, sign_bit_post_op;
 	signed short temp_result_word;
@@ -368,7 +392,9 @@ void Process_BIT(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		Perform the same operation for Low bytes of Src and Dst
 */
 void Process_BIC(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found BIC\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("BIC", rc, wb, src, dst);
 
 	unsigned sign_bit_pre_op, sign_bit_post_op;
 	signed char dst_HI, dst_LO, temp_result_byte, temp_byte_LO;
@@ -406,7 +432,9 @@ void Process_BIC(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		Perform the same operation for Low bytes of Src and Dst
 */
 void Process_BIS(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found BIS\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("BIS", rc, wb, src, dst);
 
 	unsigned sign_bit_pre_op, sign_bit_post_op;
 	signed char dst_HI, dst_LO, temp_result_byte, temp_byte_LO;
@@ -444,7 +472,9 @@ void Process_BIS(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		Perform the same operation for Low bytes of Src and Dst
 */
 void Process_MOV(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found MOV\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("MOV", rc, wb, src, dst);
 
 	unsigned sign_bit_pre_op, sign_bit_post_op;
 	signed char dst_HI, dst_LO, temp_result_byte, temp_byte_LO;
@@ -472,7 +502,9 @@ void Process_MOV(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		Perform the same operation for Low bytes of Src and Dst
 */
 void Process_SWAP(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found SWAP\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("SWAP", rc, wb, src, dst);
 
 	unsigned sign_bit_pre_op, sign_bit_post_op;
 	signed short temp_word;
@@ -506,7 +538,9 @@ void Process_SWAP(unsigned char rc, unsigned char wb, unsigned int src, unsigned
 	Perform the same operation for Low bytes of Src and Dst
 */
 void Process_SRA(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found SRA\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("SRA", rc, wb, src, dst);
 
 	unsigned MSB, LSB;
 	signed char dst_HI, dst_LO, temp_result_byte, temp_byte_LO;
@@ -549,7 +583,9 @@ void Process_SRA(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		Perform the same operation for Low bytes of Src and Dst
 */
 void Process_RRC(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found RRC\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("RRC", rc, wb, src, dst);
 
 	unsigned MSB, LSB;
 	signed char dst_HI, dst_LO, temp_result_byte, temp_byte_LO;
@@ -588,7 +624,9 @@ void Process_RRC(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 	Word oeprations allowed only (byte ignored)
 */
 void Process_SWPB(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found SWPB\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("SWPB", rc, wb, src, dst);
 
 	unsigned MSB, LSB;
 	signed char dst_HI, dst_LO, temp_result_byte, temp_byte_LO;
@@ -606,7 +644,9 @@ void Process_SWPB(unsigned char rc, unsigned char wb, unsigned int src, unsigned
 	Word oeprations allowed only (byte ignored)
 */
 void Process_SXT(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("Found SXT\n");
+
+	/* Print Results to screen and external file */
+	PrintArithResults("SXT", rc, wb, src, dst);
 
 	unsigned MSBit, LSByte;
 	signed char dst_HI, dst_LO, temp_result_byte, temp_byte_LO;
@@ -620,8 +660,11 @@ void Process_SXT(unsigned char rc, unsigned char wb, unsigned int src, unsigned 
 		REG_FILE[dst] = LSByte & 0x00FF;
 }
 
+
+
 void none(unsigned char rc, unsigned char wb, unsigned int src, unsigned int dst) {
-	printf("No Operation\n");
+	/* Print Results to screen and external file */
+	PrintArithResults("NOP", rc, wb, src, dst);
 }
 
 
@@ -661,4 +704,17 @@ void SetPSW(signed short src, signed short dst_pre_op, signed short dst_post_op,
 
 	/* Check for zero result */
 	PSWptr->zero = (dst_post_op == 0) ? 1 : 0;
+}
+
+
+
+/*
+	Print Results
+*/
+void PrintArithResults(char* INST, unsigned char RC, unsigned char WB, unsigned int SRC, unsigned int DST) {
+	printf("Found **%s**	---		RC(%d), WB(%d), SRC(%d), DST(%d)\n",
+		INST, RC, WB, SRC, DST);
+
+	fprintf(FOUT_INSTS, "Found **%s**	---		RC(%d), WB(%d), SRC(%d), DST(%d)\n",
+		INST, RC, WB, SRC, DST);
 }

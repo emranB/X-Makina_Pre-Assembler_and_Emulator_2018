@@ -9,7 +9,7 @@
 	Set breakpoint in System Clock, during Fetch-Decode-Execute cycle.
 	Default: 1000
 */
-unsigned long SYS_CLK_BREAKPOINT = 1000;
+unsigned long SYS_CLK_BREAKPOINT = 200;
 
 /* Register File */
 extern signed short REG_FILE[];

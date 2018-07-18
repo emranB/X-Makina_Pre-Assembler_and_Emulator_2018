@@ -3,9 +3,9 @@
 #include "Loader.h"
 
 
-extern struct PSW_BITS* PSWptr;			/* Structure of PSW externed from cpu.c, to be initialized */
-extern signed short REG_FILE[];			/* Register file externed from cpu.c, to be initialized */
-extern unsigned long SYS_CLK;
+struct PSW_BITS* PSWptr;				/* Initialzing PSW */
+extern signed short REG_FILE[];			/* Register File */
+unsigned long SYS_CLK;					/* Initializeing System Clock */
 
 
 /* Initialize PSW, Devices and Clock */
@@ -37,9 +37,9 @@ int main(int argc, char* argv[]) {
 		break;
 	case 2:
 		if (XmeLoader(argv[1]) != LOADER_SUCCESS) /* If loader failed to process input file */
-			printf("Warning: Failed to load input '.xme' file!\n");
+			printf("Warning: Failed to load input '.xme' file!\n\n");
 		else
-			printf("Successfully loaded input '.xme' file!\n");
+			printf("Successfully loaded input '.xme' file!\n\n");
 	}
 
 	/* Initialize PSW, Devices and Clock */

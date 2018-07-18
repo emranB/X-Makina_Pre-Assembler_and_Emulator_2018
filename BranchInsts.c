@@ -1,10 +1,12 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "cpu.h"
+#include "Instructions.h"
 
 
 extern struct PSW_BITS* PSWptr;			/* Program Status Word */
 extern signed short REG_FILE[];			/* Register File */
+extern FILE* FOUT_INSTS;				/* Write Instructions to external file */
 
 /*
 	Sign extend a 10-bit offset to a 16-bit value
@@ -13,6 +15,8 @@ extern signed short REG_FILE[];			/* Register File */
 */
 signed short TenBitFullOffset(signed short offset);
 
+/* Print Resulsts */
+void PrintBranchResults(char*, signed short);
 
 
 /*
@@ -23,13 +27,19 @@ signed short TenBitFullOffset(signed short offset);
 	Store return address in LR.
 */
 void Process_BL(signed short offset) {
-	printf("Found BL\n");
+	/* Print to external file */
+	PrintBranchResults("BL", offset);
 
 	unsigned offset_MSB; 
 
 	offset		  = (offset << 1) & 0x1FFF;	/* Shift left by 1, to ensure even value */
 	offset_MSB    = offset & 0x1000;		/* Extract bit-13 */
-	offset		  = (offset_MSB == 1) ? (offset & 0xFFFF) : (offset & 0x1FFF);
+
+	if (offset_MSB == 1)
+		offset |= 0xE000;
+	else
+		offset &= 0x1FFF;
+
 	REG_FILE[LR]  = REG_FILE[PC];
 	REG_FILE[PC] += offset;
 }
@@ -41,7 +51,8 @@ void Process_BL(signed short offset) {
 	Branch to label if zero flag is set
 */
 void Process_BEQ(signed short offset) {
-	printf("Found BEQ\n");
+	/* Print to external file */
+	PrintBranchResults("BEQ", offset);
 
 	offset = TenBitFullOffset(offset);
 	REG_FILE[PC] = (PSWptr->zero == 1) ? (REG_FILE[PC] + offset) : REG_FILE[PC];
@@ -54,7 +65,8 @@ void Process_BEQ(signed short offset) {
 	Branch to label if zero flag is cleared
 */
 void Process_BNE(signed short offset) {
-	printf("Found BNE\n");
+	/* Print to external file */
+	PrintBranchResults("BNE", offset);
 
 	offset = TenBitFullOffset(offset);
 	REG_FILE[PC] = (PSWptr->zero == 0) ? (REG_FILE[PC] + offset) : REG_FILE[PC];
@@ -67,7 +79,8 @@ void Process_BNE(signed short offset) {
 	Branch to label if carry flag is set 
 */
 void Process_BC(signed short offset) {
-	printf("Found BC\n");
+	/* Print to external file */
+	PrintBranchResults("BC", offset);
 
 	offset = TenBitFullOffset(offset);
 	REG_FILE[PC] = (PSWptr->carry == 1) ? (REG_FILE[PC] + offset) : REG_FILE[PC];
@@ -80,7 +93,8 @@ void Process_BC(signed short offset) {
 	Branch to label if carry flag is cleared 
 */
 void Process_BNC(signed short offset) {
-	printf("Found BNC\n");
+	/* Print to external file */
+	PrintBranchResults("BNC", offset);
 
 	offset = TenBitFullOffset(offset);
 	REG_FILE[PC] = (PSWptr->carry == 0) ? (REG_FILE[PC] + offset) : REG_FILE[PC];
@@ -93,7 +107,8 @@ void Process_BNC(signed short offset) {
 	Branch to label if negative flag is set
 */
 void Process_BN(signed short offset) {
-	printf("Found BN\n");
+	/* Print to external file */
+	PrintBranchResults("BN", offset);
 
 	offset = TenBitFullOffset(offset);
 	REG_FILE[PC] = (PSWptr->negative == 1) ? (REG_FILE[PC] + offset) : REG_FILE[PC];
@@ -106,7 +121,8 @@ void Process_BN(signed short offset) {
 	Branch to label if greater than or equal 
 */
 void Process_BGE(signed short offset) {
-	printf("Found BGE\n");
+	/* Print to external file */
+	PrintBranchResults("BGE", offset);
 
 	offset = TenBitFullOffset(offset);
 	REG_FILE[PC] = ((PSWptr->negative ^ PSWptr->overflow) == 0) ? (REG_FILE[PC] + offset) : REG_FILE[PC];
@@ -119,7 +135,8 @@ void Process_BGE(signed short offset) {
 	Branch to label if greater than or equal
 */
 void Process_BLT(signed short offset) {
-	printf("Found BLT\n");
+	/* Print to external file */
+	PrintBranchResults("BLT", offset);
 
 	offset = TenBitFullOffset(offset);
 	REG_FILE[PC] = ((PSWptr->negative ^ PSWptr->overflow) == 1) ? (REG_FILE[PC] + offset) : REG_FILE[PC];
@@ -132,7 +149,8 @@ void Process_BLT(signed short offset) {
 	Branch always (unconditional) to label 
 */
 void Process_BAL(signed short offset) {
-	printf("Found BAL\n");
+	/* Print to external file */
+	PrintBranchResults("BAL", offset);
 
 	offset = TenBitFullOffset(offset);
 	REG_FILE[PC] += offset;
@@ -156,7 +174,20 @@ signed short TenBitFullOffset(signed short offset) {
 	offset_MSB = (offset & 0x0200) >> 9;	
 
 	/* Sign extend 13-bit offset */
-	offset = (offset_MSB == 1) ? (offset & 0xFFFF) : (offset & 0x03FF);
+	if (offset_MSB == 1)
+		offset |= 0xFC00;
+	else
+		offset &= 0x03FF;
 
 	return offset;
+}
+
+
+
+/*
+	Print Results
+*/
+void PrintBranchResults(char* INST, signed short offset) {
+	printf("Found **%s**	---		Offset:(%04x)\n", INST, offset, offset);
+	fprintf(FOUT_INSTS, "Found **%s**	---		Offset(%04x)\n", INST, offset, offset);
 }

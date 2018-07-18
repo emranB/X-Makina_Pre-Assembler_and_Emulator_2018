@@ -66,6 +66,10 @@ void InitDevices(void) {
 		Devices[dev].IO		   = atoi(token);
 		token				   = strtok(NULL, DELIMITERS);
 		Devices[dev].PROC_TIME = atoi(token);
+
+		if (Devices[dev].IO == OUTPUT)
+			Devices[dev].DONE_TIME = SYS_CLK + Devices[dev].PROC_TIME;
+
 		dev++;
 	}
 
@@ -94,7 +98,7 @@ void CheckDevices(void) {
 		- Modify bits as required
 		- Copy incoming data to device data location
 	*/
-	if (NextDevSig.INC_TIME && SYS_CLK > NextDevSig.INC_TIME) {
+	if (NextDevSig.INC_TIME && SYS_CLK >= NextDevSig.INC_TIME) {
 		dev_scr = (struct DEV_SCR *) &MEM.MEM_BYTE[dev_scr_addr];
 		AccessDeviceMem(dev_data_addr, &(NextDevSig.DATA), WRITE);
 		/* Read and save information about next device */
@@ -116,31 +120,36 @@ void CheckDevices(void) {
 		dev_scr = (struct DEV_SCR *) &MEM.MEM_BYTE[dev * 2];
 
 		/* If device is an Input, check for IE bit */
-		if (Devices[dev].IO == INPUT && dev_scr->DBA == 1) {
-			if (dev_scr->IE) {
+		if (Devices[dev].IO == INPUT) {
+			if (dev_scr->IE && dev_scr->DBA == 1) {
+				dev_scr->DBA = 0;
+				dev_scr->OV  = 0;
 				HandleInterrupt(dev);
 			}
 		}
 
 		/* If device is an Active Ouput and has finished processing */
-		if ((SYS_CLK >= (Devices[dev].DONE_TIME)) && (Devices[dev].ACTIVE_OUT)) {
+		if (SYS_CLK >= (Devices[dev].DONE_TIME) && Devices[dev].IO == OUTPUT) {
 			dev_data_addr = (dev * 2) + 1;
-			printf("Sys_Clk = %d, Dev End Time = %d, **Device %d says %s**\n", 
-					SYS_CLK, Devices[dev].DONE_TIME, dev, &(MEM.MEM_BYTE[dev_data_addr]));
-			PrintToDevicesFile(dev, &(MEM.MEM_BYTE[dev_data_addr]), WRITE);
 
 			/* Done writing -> Data Buffer available again */
 			(dev_scr->DBA == 1) ? (dev_scr->OV = 1) : (dev_scr->DBA = 1);
+
+			if ((Devices[dev].ACTIVE_OUT)) {
+				printf("Sys_Clk = %d, Dev End Time = %d, **Device %d says %s**\n",
+					SYS_CLK, Devices[dev].DONE_TIME, dev, &(MEM.MEM_BYTE[dev_data_addr]));
+				PrintToDevicesFile(dev, &(MEM.MEM_BYTE[dev_data_addr]), WRITE);
+			}
 			Devices[dev].ACTIVE_OUT = FALSE;
 
-			if (dev_scr->IE)
+			/* Handle Interrupts if IE bit is set */
+			if (dev_scr->IE) 
 				HandleInterrupt(dev);
 			
 		}
 	}
 
-	printf("Sys Clk = %d - ok up to here\n", SYS_CLK); 
-	getchar();
+	printf("Sys Clk = %d - ok up to here\n\n", SYS_CLK); 
 }
 
 
@@ -158,6 +167,12 @@ void HandleInterrupt(unsigned dev) {
 	unsigned char  dev_psw_lo   = MEM.MEM_BYTE[EA];
 	unsigned char  dev_psw_hi   = MEM.MEM_BYTE[EA+1];
 	unsigned short dev_psw_val  = (dev_psw_hi << 8) | dev_psw_lo;
+	unsigned short* curr_psw	= (unsigned short*)PSWptr;
+
+	/* If priority of Device is less than that of Current PSW, return */
+	if (GET_PRIOR(dev_psw_val) < GET_PRIOR(*curr_psw))
+		return;
+
 	struct PSW_BITS* DEV_PSW    = (struct PSW_BITS *) (&dev_psw_val);
 
 	/* Reading entry point (PC) of the Device's ISR */
@@ -190,7 +205,7 @@ void HandleInterrupt(unsigned dev) {
 
 	REG_FILE[PC] = DEV_ISR_ADDR;
 	REG_FILE[LR] = 0xFFFF;
-	printf("Done ISR!\n");
+	printf("Going to ISR at PC = %04x!\n", REG_FILE[PC]);
 }
 
 
@@ -200,6 +215,7 @@ void HandleInterrupt(unsigned dev) {
 */
 void CloseDevices(void) {
 	fclose(fp_IN);
+	fclose(fp_OUT);
 	fclose(fp_OUT);
 }
 
@@ -234,6 +250,7 @@ void AccessDeviceMem(unsigned short address, unsigned char* data, unsigned int r
 		- For Input Devices
 			-> If data is Read
 				- Clear DBA and OV bits
+			-> Data is written (data just came in)
 		- For Output Devices
 			-> If data is Written
 				- Set DBA and/or OV bits
@@ -241,22 +258,23 @@ void AccessDeviceMem(unsigned short address, unsigned char* data, unsigned int r
 	else {
 		if (Devices[dev_num].IO == INPUT) {
 			if (rw == READ) {
-				*data = MEM.MEM_BYTE[address];
+				*data		 = MEM.MEM_BYTE[address];
 				dev_scr->DBA = 0;
-				dev_scr->OV = 0;
-				PrintToDevicesFile(dev_num, *data, READ);
+				dev_scr->OV  = 0;
+				PrintToDevicesFile(dev_num, data, READ);
+			}
+			else {
+				MEM.MEM_BYTE[address] = *data;
+				(dev_scr->DBA == 1) ? (dev_scr->OV = 1) : (dev_scr->DBA = 1);
 			}
 		}
 		else { /* Output Device */
 			if (rw == WRITE) {
-				MEM.MEM_BYTE[address] = *data;
-				//(dev_scr->DBA == 1) ? (dev_scr->OV = 1) : (dev_scr->DBA = 1);
-				/* Data Buffer not available */
-				dev_scr->DBA = 0;
-				dev_scr->OV = 0;
-
+				MEM.MEM_BYTE[address]		= *data;
+				dev_scr->DBA				= 0;
+				dev_scr->OV					= 0;
 				Devices[dev_num].ACTIVE_OUT = TRUE;
-				Devices[dev_num].DONE_TIME = SYS_CLK + Devices[dev_num].PROC_TIME;
+				Devices[dev_num].DONE_TIME  = SYS_CLK + Devices[dev_num].PROC_TIME;
 			}
 		}
 	}
@@ -275,7 +293,9 @@ void AccessDeviceMem(unsigned short address, unsigned char* data, unsigned int r
 void ReadNextDeviceSignal(FILE* fp) {
 
 	/* If no devices are left to read, set INC_TIME to FALSE */
-	NextDevSig.INC_TIME = FALSE;
+	NextDevSig.INC_TIME = NULL;
+	NextDevSig.DEV_NUM  = NULL;
+	NextDevSig.DATA     = NULL;
 
 	if (fgets(LINE, LINE_SZ, fp) != NULL) {
 		token = strtok(LINE, DELIMITERS);
@@ -289,6 +309,14 @@ void ReadNextDeviceSignal(FILE* fp) {
 		struct DEVICE* dev = &Devices[NextDevSig.DEV_NUM];
 		dev->INC_TIME = NextDevSig.INC_TIME;
 	}
+
+	printf("\n----------------------------------\n");
+	printf("Reading New dev\n");
+	printf("INC_TIME = %d\n", NextDevSig.INC_TIME);
+	printf("DEV_NUM = %d\n", NextDevSig.DEV_NUM);
+	printf("DATA = %c\n", NextDevSig.DATA);
+	printf("\n----------------------------------\n");
+
 }
 
 
@@ -297,10 +325,17 @@ void ReadNextDeviceSignal(FILE* fp) {
 	Print devices output to external file
 */
 void PrintToDevicesFile(unsigned DEV_NUM, unsigned char* DATA, unsigned RD_or_WR) {
+	printf("	%4x", REG_FILE[PC]);
+	printf("				%d", SYS_CLK);
+	printf("				%d", DEV_NUM);
+	printf("				%s", DATA);
+	((RD_or_WR) == READ) ? printf("		READ") : printf("		    WRITE");
+	printf("\n");
+
 	fprintf(fp_OUT, "	%4x", REG_FILE[PC]);
 	fprintf(fp_OUT, "				%d",  SYS_CLK);
 	fprintf(fp_OUT, "				%d",  DEV_NUM);
-	fprintf(fp_OUT, "				%s",  DATA);
-	((RD_or_WR) == READ ) ? fprintf(fp_OUT, "		READ") : fprintf(fp_OUT, "		    WRITE");
+	fprintf(fp_OUT, "				%c",  (*DATA & 0xFF));
+	((RD_or_WR) == READ ) ? fprintf(fp_OUT, "		READ") : fprintf(fp_OUT, "		WRITE");
 	fprintf(fp_OUT, "\n");
 }

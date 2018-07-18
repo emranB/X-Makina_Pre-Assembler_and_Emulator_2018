@@ -42,7 +42,7 @@ void bus(unsigned short address, unsigned short* data, unsigned int wb, unsigned
 		else {
 			MEM.MEM_BYTE[address] = (*data) & 0x00FF;					/* Writing LO Byte */
 			if (wb == WORD)
-				MEM.MEM_BYTE[address + 1] = (*data >> 8) * 0x00FF;		/* Writing HI Byte */
+				MEM.MEM_BYTE[address + 1] = (*data >> 8) & 0x00FF;		/* Writing HI Byte */
 		}
 	}
 
