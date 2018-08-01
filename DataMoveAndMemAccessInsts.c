@@ -1,3 +1,9 @@
+/*
+	Process Data Move and Memory Access Instructions
+	- Evaluate Operands for Constants and Registers
+	- Account for Pre or Post Increment or Decrement where necessary
+	- Read from or write to memory
+*/
 #include <stdint.h>
 #include <stdio.h>
 #include "Emulator.h"
@@ -284,8 +290,8 @@ void Process_STR(unsigned char offset, unsigned char wb, unsigned char src, unsi
 	Print Data Results
 */
 void PrintDataResults(char* INST, char* PARAM1_NAME, signed char PARAM1_VAL, char* PARAM2_NAME, signed char PARAM2_VAL) {
-	printf("Found **%s**	---		%s(%04x), %s(%04x)\n",
-		INST, PARAM1_NAME, PARAM1_VAL & 0xFFFF, PARAM2_NAME, PARAM2_VAL & 0xFFFF);
+	//printf("Found **%s**	---		%s(%04x), %s(%04x)\n",
+	//	INST, PARAM1_NAME, PARAM1_VAL & 0xFFFF, PARAM2_NAME, PARAM2_VAL & 0xFFFF);
 
 	fprintf(FOUT_INSTS, "Found **%s**	---		%s(%04x), %s(%04x)\n",
 		INST, PARAM1_NAME, PARAM1_VAL & 0xFFFF, PARAM2_NAME, PARAM2_VAL & 0xFFFF);

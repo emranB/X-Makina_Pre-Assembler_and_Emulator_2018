@@ -1,3 +1,6 @@
 *.vcxproj
 *.filters
 Debug
+*.txt
+IO
+*.zip

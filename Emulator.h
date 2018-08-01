@@ -1,3 +1,7 @@
+/*
+	Definitions of elements required primarily by 'main' function
+*/
+
 #pragma once
 
 #define FALSE		0
@@ -7,7 +11,7 @@
 extern union MEM_OLAY MEM;				/* Emulation of Memory */
 
 extern void InitDevices(void);			/* Initialize devices */
-extern void CloseDevices(void);			/* Close Devices */
+extern void CloseDevices(void);			/* Close Devices - Close files to read from or write to*/
 extern void InitDebugger(void);			/* Transfer control to Debugger */
 extern int XmeLoader(char *);			/* Loader function to load .xme file */
 extern void RunMachine(void);			/* Initiate Emulation for CPU */

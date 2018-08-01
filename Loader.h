@@ -1,10 +1,12 @@
+/*
+	Definitions of elements required by Loader and shared by 'main'
+*/
+
 #pragma once
 #define LINE_LEN 256					/* Max length of characters in a line */
-#define PC		 7							/* Register 7 - PC */
+#define PC		 7						/* Register 7 - PC */
 
-/* 
-	Contains the status codes for the xmeLoader 
-*/
+/* Contains the status codes for the xmeLoader */
 enum LOADER_STATUS { 
 	LOADER_SUCCESS, LOADER_BADFILE, LOADER_BADSREC, LOADER_CHKSUM_ERR 
 };	

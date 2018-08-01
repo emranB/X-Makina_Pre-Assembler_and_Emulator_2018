@@ -1,3 +1,10 @@
+/*
+	Loader.c
+	- Extract S-Records from  'srec'file
+	- Validate S-Records using Check Sum
+	- Save name of Input file
+	- Load bytes to primary Memory
+*/
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -6,6 +13,7 @@
 
 char srec[LINE_LEN];	/* Copy of each S-Record to process */
 FILE* fp;				/* Pointer to S-Records file */
+unsigned short StartingAddr;
 
 /*
 	Opens input file for reading.
@@ -68,6 +76,7 @@ int XmeLoader(char* fileName) {
 			break;
 		case 9:
 			REG_FILE[PC] = SrecAddr;
+			StartingAddr = SrecAddr;
 			break;
 		default:
 			for (i = 0; i < SrecBytesCount; i++) {
@@ -90,8 +99,6 @@ int XmeLoader(char* fileName) {
 
 	}
 
-
 	fclose(fp);
 	return LOADER_SUCCESS;
-
 }

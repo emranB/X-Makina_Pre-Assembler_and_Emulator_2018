@@ -1,3 +1,8 @@
+/*
+	Handle Arithmetic Instructions
+	- Process Instruction function handlers
+	- Modify PSW
+*/
 #include <stdint.h>
 #include <stdio.h>
 #include "cpu.h"
@@ -712,8 +717,8 @@ void SetPSW(signed short src, signed short dst_pre_op, signed short dst_post_op,
 	Print Results
 */
 void PrintArithResults(char* INST, unsigned char RC, unsigned char WB, unsigned int SRC, unsigned int DST) {
-	printf("Found **%s**	---		RC(%d), WB(%d), SRC(%d), DST(%d)\n",
-		INST, RC, WB, SRC, DST);
+	//printf("Found **%s**	---		RC(%d), WB(%d), SRC(%d), DST(%d)\n",
+	//	INST, RC, WB, SRC, DST);
 
 	fprintf(FOUT_INSTS, "Found **%s**	---		RC(%d), WB(%d), SRC(%d), DST(%d)\n",
 		INST, RC, WB, SRC, DST);

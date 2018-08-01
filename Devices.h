@@ -1,6 +1,10 @@
+/*
+	Emulation of Memory Mapped Devices
+*/
+
 #pragma once
 
-#define	VECTOR_BASE				0xFFC0
+#define	VECTOR_BASE				0xFFC0	/* Starting Location of Device Vector addresses */
 
 /*
 	Device Type
@@ -60,7 +64,7 @@ void ReadNextDeviceSignal(FILE*);
 /* Initialize devices */
 void InitDevices(void);
 
-/* Emulation of closing devices */
+/* Emulation of closing devices - Close file to read from and write to */
 void CloseDevices(void);
 
 /* Access Device Memory */

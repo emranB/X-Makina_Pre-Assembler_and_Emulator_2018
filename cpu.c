@@ -1,5 +1,8 @@
 /*
 	Emulation of all processes carried out by the Central Processing Unit (CPU)
+	- Fetch Instructions from Memory
+	- Decode Instructions via Masking
+	- Map Instructions to their function handlers 
 */
 
 #include <stdio.h>
@@ -16,6 +19,7 @@ enum CPU_STATES state;					/* State of the CPU */
 enum WORD_BYTE wb;						/* Determining Word or Byte type, based on Instruction Opcode */
 extern union MEM_OLAY MEM;				/* Main Memory */
 FILE* FOUT_INSTS;						/* Write Instructions to external file */
+unsigned InstsProcessed = 0;			/* Count of number of Instructions executed */
 
 /*
 	System Clock.
@@ -122,8 +126,9 @@ void RunMachine(void) {
 	unsigned int   type;							/* Save type of Inst */
 	unsigned int   temp_type;						/* Save secondary type of Inst */
 
-	state        = FETCH;							/* Initializing state of CPU */
+	state          = FETCH;							/* Initializing state of CPU */
 	signal(SIGINT, (_crt_signal_t)SignalHandler);	/* Handler function for SIGNINT signals */
+	InstsProcessed = 0;
 
 	/* Open file to write output of Instructions to */
 	if ((FOUT_INSTS = fopen("../Debug/InstructionsOutput.txt", "w")) == NULL)
@@ -142,11 +147,11 @@ void RunMachine(void) {
 				if ((INST = fetch()) == FALSE) {	/* If Instrution is not fetched */
 					state = HANDLE_DEVICES;
 					SYS_CLK++;
-					printf("No fetch\n");
+					//printf("No fetch\n");
 				}
 				else
 					state = DECODE;
-				printf("PC = %4x	", REG_FILE[PC]);
+				//printf("PC = %04x	Inst = %04x\n", REG_FILE[PC], INST);
 				fprintf(FOUT_INSTS, "PC = %4x	", REG_FILE[PC]);
 				REG_FILE[PC] += 2;					/* Increment PC */
 				break;
@@ -193,6 +198,7 @@ void RunMachine(void) {
 					break;
 				}
 				SYS_CLK++;	/* Increment SYS_CLK at the end of evey cycle */
+				InstsProcessed++;	/* Cound of number of Instructions executed */
 				state = HANDLE_DEVICES;
 				break;
 			case HANDLE_DEVICES:
@@ -202,11 +208,19 @@ void RunMachine(void) {
 		}
 
 		/* SYS_CLK_BREAKPOINT is set by Debugger. Default value = 1000 */
-		if (SYS_CLK > SYS_CLK_BREAKPOINT)
-			break;
-	} /* End of while loop */
+		if (SYS_CLK > SYS_CLK_BREAKPOINT) {
+			printf("\n");
+			printf("Reached Breakpoint - %d\n", SYS_CLK);
+			printf("Instructions Processed - %d\n", InstsProcessed);
+			printf("\n");
 
-	PrintRegFile();
+			PrintRegFile();
+			fclose(FOUT_INSTS);
+
+			unsigned InstsProcessed = 0;
+			break;
+		}
+	} /* End of while loop */
 
 }
 

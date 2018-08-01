@@ -1,3 +1,9 @@
+/*
+	Emaulation of Memory Mapped Devices
+	- Read from and write to external Devices files
+	- Acces Device Memory
+	- Modify Device SCR, Data, PSW
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include "cpu.h"
@@ -39,16 +45,16 @@ char* token;					/* Tokens of Lines being read */
 */
 void InitDevices(void) {
 	/* Open external file to write output of devices to */
-	if ((fp_OUT = fopen("../Debug/DevicesOutput.txt", "w")) == NULL)
+	if ((fp_OUT = fopen("DevicesOutput.txt", "w")) == NULL)
 		printf("Error opening Devices output file!\n");
 
 	/* Printing column headers to external file */
 	fprintf(fp_OUT, "-----------------------------------------------------------------------------\n");
-	fprintf(fp_OUT, "Program Counter	|	System Clock	|	Device #	|	Data	|	Action\n");
+	fprintf(fp_OUT, "System Clock	|	Device #	|	Data	|	Action\n");
 	fprintf(fp_OUT, "-----------------------------------------------------------------------------\n");
 
 	/* Read configuration of devices from external file */
-	if ((fp_IN = fopen("IO/stimuli.txt", "r")) == NULL)
+	if ((fp_IN = fopen("../Emulator/IO/stimuli.txt", "r")) == NULL)
 		printf("Error opening Devices input file!\n");
 
 	unsigned dev = 0;		/* First device*/
@@ -136,8 +142,8 @@ void CheckDevices(void) {
 			(dev_scr->DBA == 1) ? (dev_scr->OV = 1) : (dev_scr->DBA = 1);
 
 			if ((Devices[dev].ACTIVE_OUT)) {
-				printf("Sys_Clk = %d, Dev End Time = %d, **Device %d says %s**\n",
-					SYS_CLK, Devices[dev].DONE_TIME, dev, &(MEM.MEM_BYTE[dev_data_addr]));
+				//printf("Sys_Clk = %d, Dev End Time = %d, **Device %d says %s**\n",
+				//	SYS_CLK, Devices[dev].DONE_TIME, dev, &(MEM.MEM_BYTE[dev_data_addr]));
 				PrintToDevicesFile(dev, &(MEM.MEM_BYTE[dev_data_addr]), WRITE);
 			}
 			Devices[dev].ACTIVE_OUT = FALSE;
@@ -149,7 +155,7 @@ void CheckDevices(void) {
 		}
 	}
 
-	printf("Sys Clk = %d - ok up to here\n\n", SYS_CLK); 
+	//printf("Sys Clk = %d\n\n", SYS_CLK); 
 }
 
 
@@ -205,7 +211,7 @@ void HandleInterrupt(unsigned dev) {
 
 	REG_FILE[PC] = DEV_ISR_ADDR;
 	REG_FILE[LR] = 0xFFFF;
-	printf("Going to ISR at PC = %04x!\n", REG_FILE[PC]);
+	//printf("Going to ISR at PC = %04x!\n", REG_FILE[PC]);
 }
 
 
@@ -298,6 +304,12 @@ void ReadNextDeviceSignal(FILE* fp) {
 	NextDevSig.DATA     = NULL;
 
 	if (fgets(LINE, LINE_SZ, fp) != NULL) {
+		//char* tok1; char* tok2; char* tok3;
+		//fscanf(fp, "%d %d %c", &tok1, &tok2, &tok3);
+		//NextDevSig.INC_TIME = tok1;
+		//NextDevSig.DEV_NUM  = tok2;
+		//NextDevSig.DATA		= tok3;
+
 		token = strtok(LINE, DELIMITERS);
 		NextDevSig.INC_TIME = atoi(token);
 		token = strtok(NULL, DELIMITERS);
@@ -310,12 +322,12 @@ void ReadNextDeviceSignal(FILE* fp) {
 		dev->INC_TIME = NextDevSig.INC_TIME;
 	}
 
-	printf("\n----------------------------------\n");
-	printf("Reading New dev\n");
-	printf("INC_TIME = %d\n", NextDevSig.INC_TIME);
-	printf("DEV_NUM = %d\n", NextDevSig.DEV_NUM);
-	printf("DATA = %c\n", NextDevSig.DATA);
-	printf("\n----------------------------------\n");
+	//printf("\n----------------------------------\n");
+	//printf("Reading New dev\n");
+	//printf("INC_TIME = %d\n", NextDevSig.INC_TIME);
+	//printf("DEV_NUM = %d\n", NextDevSig.DEV_NUM);
+	//printf("DATA = %c\n", NextDevSig.DATA);
+	//printf("\n----------------------------------\n");
 
 }
 
@@ -325,14 +337,13 @@ void ReadNextDeviceSignal(FILE* fp) {
 	Print devices output to external file
 */
 void PrintToDevicesFile(unsigned DEV_NUM, unsigned char* DATA, unsigned RD_or_WR) {
-	printf("	%4x", REG_FILE[PC]);
-	printf("				%d", SYS_CLK);
-	printf("				%d", DEV_NUM);
-	printf("				%s", DATA);
-	((RD_or_WR) == READ) ? printf("		READ") : printf("		    WRITE");
-	printf("\n");
+	//printf("	%4x", REG_FILE[PC]);
+	//printf("				%d", SYS_CLK);
+	//printf("				%d", DEV_NUM);
+	//printf("				%s", DATA);
+	//((RD_or_WR) == READ) ? printf("		READ") : printf("		    WRITE");
+	//printf("\n");
 
-	fprintf(fp_OUT, "	%4x", REG_FILE[PC]);
 	fprintf(fp_OUT, "				%d",  SYS_CLK);
 	fprintf(fp_OUT, "				%d",  DEV_NUM);
 	fprintf(fp_OUT, "				%c",  (*DATA & 0xFF));

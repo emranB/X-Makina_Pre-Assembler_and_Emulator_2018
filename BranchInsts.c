@@ -1,3 +1,9 @@
+/*
+	Function Handlers for Branch Instructions
+	- Convert offset to 16-bit value
+	- Keep sign bit through sign extension
+	- Make PC jump to new offset location
+*/
 #include <stdint.h>
 #include <stdio.h>
 #include "cpu.h"
@@ -32,13 +38,13 @@ void Process_BL(signed short offset) {
 
 	unsigned offset_MSB; 
 
-	offset		  = (offset << 1) & 0x1FFF;	/* Shift left by 1, to ensure even value */
-	offset_MSB    = offset & 0x1000;		/* Extract bit-13 */
+	offset	   = (offset << 1);	/* Shift left by 1, to ensure even value */
+	offset_MSB = (offset & 0x2000) >> 13;		/* Extract bit-13 */
 
 	if (offset_MSB == 1)
-		offset |= 0xE000;
+		offset |= 0xC000;
 	else
-		offset &= 0x1FFF;
+		offset &= 0x3FFF;
 
 	REG_FILE[LR]  = REG_FILE[PC];
 	REG_FILE[PC] += offset;
@@ -188,6 +194,6 @@ signed short TenBitFullOffset(signed short offset) {
 	Print Results
 */
 void PrintBranchResults(char* INST, signed short offset) {
-	printf("Found **%s**	---		Offset:(%04x)\n", INST, offset, offset);
+	//printf("Found **%s**	---		Offset:(%04x)\n", INST, offset, offset);
 	fprintf(FOUT_INSTS, "Found **%s**	---		Offset(%04x)\n", INST, offset, offset);
 }

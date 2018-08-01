@@ -1,5 +1,5 @@
 /*
-	Instruction Emulation function handlers
+	Instruction Emulation function handler definitions
 */
 /* @input: 13-bit offset */
 void Process_BL(signed short);
